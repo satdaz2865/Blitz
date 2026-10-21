@@ -112,56 +112,44 @@ static DWORD WINAPI AudioThreadProc(LPVOID lpParam) {
             // 1. Crash explosion sound (highest priority)
             if (crashActive) {
                 if (crashOffset < CRASH_SAMPLE_COUNT) {
-                    mixed += (float)crash_pcm[crashOffset] * 0.95f;
+                    mixed += (float)crash_pcm[crashOffset] * 0.90f;
                     crashOffset++;
                 } else {
                     crashActive = false;
                 }
             }
 
-            // 2. Rising Voice 2 drill beeps
+            // 2. Authentic floor hit / bomb drill sound directly from blitz.mp4
             if (hitActive) {
-                if (hitOffset < hitDuration) {
-                    hitPhase += (2.0f * 3.14159265f * hitFreq) / (float)SAMPLE_RATE;
-                    if (hitPhase > 2.0f * 3.14159265f) hitPhase -= 2.0f * 3.14159265f;
-                    float sq = (hitPhase < 3.14159265f) ? 0.65f : -0.65f;
-
-                    // Also blend PCM attack slice
-                    float pcmSample = 0.0f;
-                    if (hitOffset < HIT_SAMPLE_COUNT) {
-                        pcmSample = ((float)hit_pcm[hitOffset] / 32768.0f) * 0.4f;
-                    }
-                    mixed += (sq + pcmSample) * 32767.0f * 0.75f;
+                if (hitOffset < HIT_SAMPLE_COUNT) {
+                    mixed += (float)hit_pcm[hitOffset] * 0.75f;
                     hitOffset++;
                 } else {
                     hitActive = false;
                 }
             }
 
-            // 3. Engine hum
+            // 3. Engine hum (continuous loop)
             if (engineActive && !crashActive) {
-                int sampleIdx = (int)((float)engineOffset * enginePitch);
-                if (sampleIdx < ENGINE_SAMPLE_COUNT) {
-                    mixed += (float)engine_pcm[sampleIdx] * 0.45f;
+                if (engineOffset < ENGINE_SAMPLE_COUNT) {
+                    mixed += (float)engine_pcm[engineOffset] * 0.40f;
                     engineOffset++;
                 } else {
-                    engineActive = false;
+                    engineOffset = 0; // loop
                 }
             }
 
-            // 4. Landing celebration chime (arpeggio of square waves)
+            // 4. Landing celebration victory chime
             if (chimeActive) {
-                static const float notes[7] = { 261.63f, 329.63f, 392.00f, 523.25f, 659.25f, 783.99f, 1046.50f };
-                chimePhase += (2.0f * 3.14159265f * notes[chimeStep % 7]) / (float)SAMPLE_RATE;
-                if (chimePhase > 2.0f * 3.14159265f) chimePhase -= 2.0f * 3.14159265f;
-                float sq = (chimePhase < 3.14159265f) ? 0.45f : -0.45f;
+                float period = (float)SAMPLE_RATE / 554.37f; // C#5
+                chimePhase += 1.0f;
+                if (chimePhase >= period) chimePhase -= period;
+                float sq = (chimePhase < period * 0.5f) ? 0.35f : -0.35f;
                 mixed += sq * 32767.0f;
 
                 chimeSample++;
-                if (chimeSample >= 2205) { // 100ms per note
-                    chimeSample = 0;
-                    chimeStep++;
-                    if (chimeStep >= 7) chimeActive = false;
+                if (chimeSample >= (int)((float)SAMPLE_RATE * 0.40f)) {
+                    chimeActive = false;
                 }
             }
 
@@ -245,22 +233,17 @@ static void audio_silence(void) {
 }
 
 static void audio_play_engine(bool propState) {
+    (void)propState;
     EnterCriticalSection(&audioCs);
     engineActive = true;
-    engineOffset = 0;
-    enginePitch = propState ? 1.06f : 0.94f; // subtle pitch shift per prop phase
     LeaveCriticalSection(&audioCs);
 }
 
 static void audio_play_drill(int fRemaining) {
+    (void)fRemaining;
     EnterCriticalSection(&audioCs);
-    hitActive = true;
     hitOffset = 0;
-    hitDuration = (int)((float)SAMPLE_RATE * 0.08f); // 80 ms per drill step
-    int r = 6 - fRemaining;
-    if (r < 0) r = 0;
-    hitFreq = 220.0f + (float)r * 65.0f; // Rising tone: ~220 Hz up to ~610 Hz
-    hitPhase = 0.0f;
+    hitActive = true;
     LeaveCriticalSection(&audioCs);
 }
 
@@ -530,14 +513,15 @@ static void initCityFrame(void) {
     }
 
     // Columns 2 to 19: Pure Monochrome BLACK buildings
-    // Level-scaled height: Level 1 (frameLevel 0) starts with height 2...6 (100% completable!)
-    int minH = (2 + frameLevel < 4) ? (2 + frameLevel) : 4;
-    int maxH = (6 + frameLevel < 10) ? (6 + frameLevel) : 10;
-
+    // Authentic VIC-20 skyline with tall towers up to 9 floors tall
+    bool prevWasTall = false;
     for (int x = 2; x <= 19; x++) {
         uint8_t bStyle = (uint8_t)(rand() % 5);       // Window style 0..4
-        int height = minH + (rand() % (maxH - minH + 1));
         uint8_t spireStyle = (uint8_t)(10 + (rand() % 5)); // Spire style 10..14
+
+        int maxH = prevWasTall ? 5 : 8;
+        int height = 3 + (rand() % (maxH - 3 + 1));
+        prevWasTall = (height >= 7);
 
         for (int y = 0; y <= height; y++) {
             int r = 21 - y;
@@ -1089,9 +1073,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         return 1;
     }
 
-    // Default window size: 960x540 window
-    int winW = 960;
-    int winH = 540;
+    // Default window size: 1100x620 (spacious 16:9 window for modern and high-DPI displays)
+    int winW = 1100;
+    int winH = 620;
     int screenW = GetSystemMetrics(SM_CXSCREEN);
     int screenH = GetSystemMetrics(SM_CYSCREEN);
     int posX = (screenW - winW) / 2;

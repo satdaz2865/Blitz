@@ -217,14 +217,15 @@ class BlitzGame {
         }
         
         // Columns 2 to 19: Pure Monochrome BLACK buildings
-        // Level-scaled height: Level 1 (frameLevel 0) starts with height 2...6 (100% completable!)
-        // Subsequent levels progressively introduce taller towers and faster flight.
-        let minH = min(4, 2 + frameLevel)
-        let maxH = min(10, 6 + frameLevel)
+        // Authentic VIC-20 skyline with tall towers up to 9 floors tall
+        var prevWasTall = false
         for x in 2...19 {
             let bStyle = UInt8(Int.random(in: 0...4))      // Window style 0..4
-            let height = Int.random(in: minH...maxH)       // Building height (3 to 7 floors on Level 1)
             let spireStyle = UInt8(Int.random(in: 10...14)) // Spire style 10..14
+            
+            let maxH = prevWasTall ? 5 : 8
+            let height = Int.random(in: 3...maxH)
+            prevWasTall = (height >= 7)
             
             for y in 0...height {
                 let r = 21 - y
