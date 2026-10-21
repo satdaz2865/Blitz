@@ -1,0 +1,5 @@
+.DS_Store
+VIC Blitz
+*.o
+*.swp
+VIC Blitz.app
