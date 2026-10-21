@@ -252,7 +252,7 @@ class BlitzGame {
         case .playing:
             if !bombActive {
                 bombActive = true
-                bombRow = planeRow + 1
+                bombRow = planeRow // Starts at planeRow; first updateBomb tick advances to planeRow + 1 so rooftops/spires are never skipped!
                 bombCol = planeCol + 1
                 bombPower = 6 // f = 6: Penetrate up to 5 floors in a row
             }
@@ -416,6 +416,16 @@ class BlitzGame {
         crashTick = 0
         
         erasePlane()
+        
+        if bombActive {
+            if bombRow < Self.rows && bombCol < Self.cols {
+                let bIdx = bombRow * Self.cols + bombCol
+                if screen[bIdx] == 20 {
+                    screen[bIdx] = 32
+                }
+            }
+            bombActive = false
+        }
         
         // Debris: Nose (19) and Tail (31)
         crashDebris = [
