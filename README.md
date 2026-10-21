@@ -1,8 +1,10 @@
-# VIC-20 Blitz (1981) — Native macOS Port
+# VIC-20 Blitz (1981) — Native macOS & Windows Ports
 
-A 100% native macOS recreation of the legendary 1981 Commodore VIC-20 classic **Blitz** (written by Simon N. Taylor, published by Commodore UK / Taysoft).
+A 100% native reverse-engineered recreation of the legendary 1981 Commodore VIC-20 classic **Blitz** (written by Simon N. Taylor, published by Commodore UK / Taysoft).
 
-This port is **not an emulator**. It is a clean, pure Swift & AppKit application running natively on Apple Silicon (arm64) and Intel (x86_64) Macs, with pixel-perfect visual fidelity, authentic VIC-I sound synthesis, and identical 1981 gameplay mechanics reverse-engineered directly from the original tape ROM.
+This repository contains two completely native, standalone ports with **zero emulators** required:
+* **macOS (AppKit / Swift)**: Runs on Apple Silicon (arm64) and Intel (x86_64) Macs. Pre-built bundle: [`macOS/VIC Blitz.app`](macOS/VIC%20Blitz.app).
+* **Windows (Win32 / C)**: Pure native 64-bit Windows GUI executable with GDI graphics and WaveOut audio. Pre-built executable: [`Windows/VIC_Blitz.exe`](Windows/VIC_Blitz.exe).
 
 ---
 
@@ -18,46 +20,18 @@ This port is **not an emulator**. It is a clean, pure Swift & AppKit application
   - Falling bomb with stabilization fins
   - Animated walking pilot celebration sequence
   - Impact craters and falling crash debris
-* **Commodore Character Generator ROM**: Razor-sharp authentic Commodore VIC-20 ROM typography for the title screen, instructions, and high-score screens.
-* **VIC-I (MOS 6561) Sound Synthesis**: Real-time audio generated via `AVAudioEngine` and `AVAudioSourceNode`:
-  - **Biplane Engine Hum**: Clocked 16-bit LFSR pseudo-random noise toggling between 364.6 Hz (`pokew, 160`) and 272.7 Hz (`pokew, 128`), reproducing the low-frequency mechanical engine chug.
+* **Commodore Character Generator ROM**: Authentic Commodore VIC-20 ROM typography for the title screen, instructions, HUD, and high-score screens.
+* **Authentic VIC-I (MOS 6561) Audio**:
+  - **Biplane Engine Hum**: 16-bit pseudo-random noise toggling between 364.6 Hz and 272.7 Hz, reproducing the low-frequency mechanical engine chug.
   - **5-Row Floor Penetration Drill**: Voice 2 square-wave synthesizer using Simon Taylor's exact formula `254 - f*20`, producing rising staccato beeps (~85 Hz → ~107 Hz → ~142 Hz → ~211 Hz → ~412 Hz) as the bomb drills down through the city.
-  - **Crash Explosion**: High-frequency noise burst at ~989.6 Hz (`pokew, 220`) with linear volume decay.
+  - **Crash Explosion**: Noise burst at ~989.6 Hz with screen shake and linear volume decay.
   - **Landing Fanfare**: Victory engine ramp and celebratory chimes.
-* **Authentic Gameplay Pacing**: Configured to match the original ~5.7 steps/second VIC-20 execution speed, with real-time speed adjustments.
-* **Monochrome Mode**: Press `M` anytime to toggle between the original Commodore UK palette and the monochrome B&W display mode.
-
----
-
-## The Reverse-Engineering Journey
-
-### 1. Tape Extraction (`BLITZ.tap` → `blitz.prg`)
-The original cassette tape recording was decoded from raw C2N tape pulse timings into a 3,569-byte Commodore PRG file with load address `$1001` (4097 in decimal, standard VIC-20 BASIC RAM start for an unexpanded 5KB machine).
-
-### 2. Disassembly & BASIC Decompilation
-Using `petcat` and custom 6502 disassembly tools, the tokenized program was decompiled into 65 lines of BASIC V2 and embedded machine code routines:
-- **Line 5**: Sets memory pointers `poke 46, 26 : poke 45, 240` and disables Commodore shift mode with `print chr$(8)`.
-- **Lines 80–145**: Title screen layout, copyright notice, instructions, and reverse-video F1 prompt.
-- **Lines 150 & 660**: Custom character set setup. Copies digits `'0'..'9'` and space from ROM (`$8000`) into character RAM at `$1C00` (`7168`).
-- **Lines 200–240**: Procedural skyline generator. Selects random styles (`0..4`), heights (`2..10`), and spires (`10..14`), accompanied by Voice 2 pitch feedback.
-- **Lines 250–360**: Core flight, bomb dropping, collision detection, and score tracking loop.
-- **Lines 410–460**: Safe landing sequence and walking pilot animation (`chars 16..18`).
-- **Lines 470–590**: Mid-air collision, screen shake (`poke 36864, rnd(3)`), and debris physics.
-- **Lines 600–650**: Game Over and Best Score presentation.
-
-### 3. Solving the Garbled Text Mystery
-Early port builds showed garbled, corrupt glyphs in the menus and HUD. Investigation revealed how Simon Taylor managed the VIC-20's limited memory:
-- In VIC-20 screen RAM, values `1..26` correspond to letters `'A'..'Z'`.
-- In Blitz, custom game sprites (buildings, roofs, bombs, plane) were placed at character indices `0..31` in RAM at `$1C00`.
-- The original game toggled register `$9005` (bit 7) to switch between ROM font mode (for title and game-over screens) and RAM sprite mode (for gameplay).
-- To preserve crisp text and accurate sprites without conflict, the macOS port cleanly routes text rendering through `FontData.romBytes` and entity rendering through `FontData.customSprites`.
-
-### 4. Reconstructing the 5-Row Bomb Mechanics
-In the original game, a bomb does not merely destroy a single block. Each bomb starts with penetration energy `f = 6`. When entering a building:
-1. It drills downward through up to 5 successive floors.
-2. Each floor penetrated increments the score by +1 and plays an escalating pitch tone.
-3. The floor above is replaced with space (`32`), cleanly carving a shaft through the building.
-4. When `f` reaches 0, the remaining bottom floor becomes a damaged remnant (`char + 5`).
+* **Mathematically Achievable Progression**: Level 1 skyline generation is calibrated so that every generated layout is 100% completable. Clearing a level lands the plane on Runway Row 21, awards a 20% score bonus, and advances to the next frame with progressive difficulty.
+* **Keyboard Controls**:
+  - <kbd>Space</kbd> / <kbd>Return</kbd> / <kbd>Down Arrow</kbd> / <kbd>F1</kbd>: Drop bomb / Start game
+  - <kbd>Esc</kbd>: Exit to Title Menu
+  - <kbd>M</kbd>: Toggle between Full Color and Monochrome Green/Black modes
+  - <kbd>+</kbd> / <kbd>-</kbd>: Adjust game speed in real time
 
 ---
 
@@ -65,63 +39,92 @@ In the original game, a bomb does not merely destroy a single block. Each bomb s
 
 ```
 .
-├── BlitzAudio.swift      # Real-time VIC-I MOS 6561 sound synthesizer (AVAudioEngine)
-├── BlitzGame.swift       # 1:1 state machine, skyline generation, physics & rules
-├── BlitzView.swift       # AppKit NSView with CRT aspect ratio & character blitter
-├── FontData.swift        # Extracted 8x8 bitmaps (Commodore ROM + 32 custom sprites)
-├── main.swift            # macOS AppKit lifecycle, menu bar, and tick timer
-├── Info.plist            # macOS Application bundle metadata
-├── AppIcon.icns          # High-resolution retro application icon
-├── build.sh              # One-command compilation and app bundling script
-├── blitz.prg             # Original 1981 Commodore VIC-20 PRG binary
-├── analyze_prg.py        # Python tool used during bitmap extraction
-└── disasm.py             # 6502 disassembler utility
+├── README.md               # Project documentation
+│
+├── macOS/                  # Native macOS AppKit/Swift Port
+│   ├── VIC Blitz.app       # Pre-built standalone macOS application bundle
+│   ├── main.swift          # AppKit delegate, event handling, and game loop
+│   ├── BlitzGame.swift     # Complete game state machine, physics & rules
+│   ├── BlitzView.swift     # Custom NSView with CRT aspect ratio & character blitter
+│   ├── BlitzAudio.swift    # Low-latency AVAudioEngine real-time audio mixer
+│   ├── AudioData.swift     # Embedded PCM audio buffers (22,050 Hz)
+│   ├── FontData.swift      # 256 Commodore ROM glyphs + 32 custom game sprites
+│   ├── Info.plist          # macOS bundle configuration
+│   ├── AppIcon.icns        # High-res retro macOS application icon
+│   └── build.sh            # One-command macOS build script
+│
+├── Windows/                # Native Windows Win32/C Port
+│   ├── VIC_Blitz.exe       # Pre-built standalone 64-bit Windows executable
+│   ├── main.c              # Pure Win32 C implementation (GDI + WaveOut)
+│   ├── font_data.h         # Extracted 8x8 ROM glyphs and custom sprites
+│   ├── audio_data.h        # Embedded PCM audio buffers
+│   ├── resource.rc         # Windows application icon and version metadata
+│   ├── app.ico             # Windows multi-resolution icon (16x16 to 256x256)
+│   ├── build.sh            # MinGW-w64 cross-compilation script (macOS/Linux)
+│   └── build.bat           # Windows command prompt build script (GCC/MinGW)
+│
+└── tools/                  # Reverse-Engineering Utilities
+    ├── blitz.prg           # Original 1981 Commodore VIC-20 PRG tape dump
+    ├── analyze_prg.py      # Tape structure analysis & sprite extractor
+    └── disasm.py           # 6502 disassembler utility
 ```
 
 ---
 
 ## How to Build & Run
 
-### Prerequisites
-* macOS 13.0 (Ventura), 14.0 (Sonoma), 15.0 (Sequoia), or later.
-* Xcode Command Line Tools (`xcode-select --install`).
+### macOS
 
-### Build Instructions
-Clone the repository and run the build script:
-
+#### Pre-Built App
+Double-click `macOS/VIC Blitz.app` or run:
 ```bash
-git clone https://github.com/satdaz2865/Blitz.git
-cd Blitz
-./build.sh
+open "macOS/VIC Blitz.app"
 ```
 
-To launch the compiled application:
+#### Compiling from Source
+Requires Xcode Command Line Tools (`xcode-select --install`):
 ```bash
+cd macOS
+./build.sh
 open "VIC Blitz.app"
 ```
 
-* **Crash Screen Shake**: Authentic violent screen jitter (matching line 510 `poke 36865, rnd(3)+38 : poke 36864, rnd(3)+12`) as the plane impacts and explodes.
-* **Level Progression & Touchdown**: Completing a city by flattening all buildings allows the plane to glide smoothly across Runway Row 21, landing safely to award a 20% bonus and advance to the next level.
-* **Progressive Difficulty**: The biplane flies slightly faster on each completed level (~10% speed boost per level), and starts one row lower.
-* **Escape to Menu**: Press <kbd>ESC</kbd> anytime to return immediately to the main title screen.
+---
+
+### Windows
+
+#### Pre-Built Executable
+Run `Windows/VIC_Blitz.exe` directly on any 64-bit Windows PC (Windows 7, 8, 10, 11). No install, no runtime, no external DLLs needed.
+
+#### Compiling from Source on Windows (MinGW / GCC)
+```cmd
+cd Windows
+build.bat
+```
+
+#### Cross-Compiling for Windows on macOS / Linux (MinGW-w64)
+```bash
+# On macOS: brew install mingw-w64
+cd Windows
+./build.sh
+```
 
 ---
 
-## Controls
+## Reverse-Engineering Highlights
 
-| Key | Action |
-| :--- | :--- |
-| <kbd>Space</kbd> / <kbd>Return</kbd> / <kbd>↓</kbd> / <kbd>F1</kbd> | Start Game / Drop Bomb |
-| <kbd>Esc</kbd> | Return to Main Title Menu |
-| <kbd>M</kbd> | Toggle Color / Monochrome (B&W) mode |
-| <kbd>-</kbd> | Slower speed (easier) |
-| <kbd>+</kbd> / <kbd>=</kbd> | Faster speed (harder) |
-| <kbd>Q</kbd> | Quit game |
+1. **Tape Extraction (`blitz.prg`)**:
+   Extracted from original tape timings into a 3,569-byte binary with load address `$1001` (4097 decimal, VIC-20 BASIC RAM start for an unexpanded 5KB machine).
+2. **Decompilation**:
+   Reconstructed all 65 lines of BASIC V2 and embedded machine code routines, extracting Simon Taylor's original screen RAM offsets, Voice 2 drill formulas (`254 - f*20`), and screen shake logic (`poke 36865, rnd(3)+38 : poke 36864, rnd(3)+12`).
+3. **ROM vs. RAM Glyph Separation**:
+   In the original game, `$9005` was toggled between character ROM mode (menus) and RAM sprite mode (gameplay). Both the macOS and Windows ports cleanly resolve this by separating the 256-glyph Commodore ROM font from the 32 in-game custom 8×8 sprites.
+4. **5-Row Drilling Physics**:
+   A bomb does not just delete one cell; it drills downward through up to 5 floors, escalating in pitch with each floor penetrated, before leaving a damaged floor remnant on the 6th floor.
 
 ---
 
-## Historical Credits
+## License & Credits
 
-* **Original Author**: Simon N. Taylor (Taysoft / Commodore Business Machines UK, 1981–1982).
-* **Original Platform**: Commodore VIC-20 (MOS Technology 6502 CPU @ 1.1 MHz, MOS 6561 VIC-I Video/Audio, 5 KB RAM).
-* **Reverse-Engineered & Ported to macOS**: 2026.
+* Original 1981 game by **Simon N. Taylor**, published by **Commodore UK / Taysoft**.
+* Reverse-engineered, modernized, and ported natively for macOS and Windows.

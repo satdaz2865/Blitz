@@ -1,4 +1,6 @@
 .DS_Store
-/VIC Blitz
+VIC Blitz
+macOS/VIC Blitz
 *.o
+*.res
 *.swp
