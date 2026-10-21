@@ -6,6 +6,7 @@ echo "=== Building VIC-20 Blitz for macOS ==="
 # Compile native binary with Swift compiler
 swiftc -O -o "VIC Blitz" \
     FontData.swift \
+    AudioData.swift \
     BlitzAudio.swift \
     BlitzGame.swift \
     BlitzView.swift \

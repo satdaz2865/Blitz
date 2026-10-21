@@ -6,7 +6,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     var blitzView: BlitzView!
     var audio: BlitzAudio!
     var gameTimer: Timer?
-    var speedInterval: Double = 0.175 // Authentic Commodore BASIC speed (~5.7 steps/sec)
+    var baseSpeedInterval: Double = 0.175 // Level 1 authentic speed (~5.7 steps/sec)
+    var speedInterval: Double = 0.175
     
     func applicationDidFinishLaunching(_ notification: Notification) {
         audio = BlitzAudio()
@@ -41,6 +42,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
     }
     
+    func updateSpeedForLevel() {
+        // Increases speed slightly for each level completed (~0.012s faster per frame)
+        let boost = Double(game.frameLevel) * 0.012
+        speedInterval = max(0.070, baseSpeedInterval - boost)
+        startTimer()
+    }
+    
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         return true
     }
@@ -68,6 +76,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         speedInterval = max(0.08, speedInterval - 0.03)
         startTimer()
     }
+    
+    @objc func escapeToMenu() {
+        game.showTitleScreen()
+        blitzView.needsDisplay = true
+    }
 }
 
 // Set up NSApplication
@@ -89,10 +102,13 @@ appMenuItem.submenu = appMenu
 let gameMenuItem = NSMenuItem()
 mainMenu.addItem(gameMenuItem)
 let gameMenu = NSMenu(title: "Game")
+let menuEscapeItem = NSMenuItem(title: "Return to Menu", action: #selector(AppDelegate.escapeToMenu), keyEquivalent: "\u{1b}")
 let monoItem = NSMenuItem(title: "Toggle Monochrome (B&W)", action: #selector(AppDelegate.toggleMonochrome), keyEquivalent: "m")
 let slowerItem = NSMenuItem(title: "Slower Speed", action: #selector(AppDelegate.makeSlower), keyEquivalent: "-")
 let fasterItem = NSMenuItem(title: "Faster Speed", action: #selector(AppDelegate.makeFaster), keyEquivalent: "=")
 
+gameMenu.addItem(menuEscapeItem)
+gameMenu.addItem(NSMenuItem.separator())
 gameMenu.addItem(monoItem)
 gameMenu.addItem(NSMenuItem.separator())
 gameMenu.addItem(slowerItem)

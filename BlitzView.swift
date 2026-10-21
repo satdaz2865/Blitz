@@ -36,6 +36,13 @@ class BlitzView: NSView {
     override var acceptsFirstResponder: Bool { true }
     
     override func keyDown(with event: NSEvent) {
+        if event.keyCode == 53 {
+            // Escape key (53): return to title screen menu
+            game.showTitleScreen()
+            needsDisplay = true
+            return
+        }
+        
         if event.keyCode == 49 || event.keyCode == 125 || event.keyCode == 36 || event.keyCode == 122 { 
             // Space, Down Arrow, Return, F1
             game.handleFire()
@@ -83,8 +90,8 @@ class BlitzView: NSView {
         bounds.fill()
         
         let screenRect = NSRect(
-            x: offsetX + borderPaddingX * scale,
-            y: offsetY + borderPaddingY * scale,
+            x: offsetX + borderPaddingX * scale + game.shakeX,
+            y: offsetY + borderPaddingY * scale + game.shakeY,
             width: screenVirtualW * scale,
             height: screenVirtualH * scale
         )

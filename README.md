@@ -100,6 +100,11 @@ To launch the compiled application:
 open "VIC Blitz.app"
 ```
 
+* **Crash Screen Shake**: Authentic violent screen jitter (matching line 510 `poke 36865, rnd(3)+38 : poke 36864, rnd(3)+12`) as the plane impacts and explodes.
+* **Level Progression & Touchdown**: Completing a city by flattening all buildings allows the plane to glide smoothly across Runway Row 21, landing safely to award a 20% bonus and advance to the next level.
+* **Progressive Difficulty**: The biplane flies slightly faster on each completed level (~10% speed boost per level), and starts one row lower.
+* **Escape to Menu**: Press <kbd>ESC</kbd> anytime to return immediately to the main title screen.
+
 ---
 
 ## Controls
@@ -107,6 +112,7 @@ open "VIC Blitz.app"
 | Key | Action |
 | :--- | :--- |
 | <kbd>Space</kbd> / <kbd>Return</kbd> / <kbd>↓</kbd> / <kbd>F1</kbd> | Start Game / Drop Bomb |
+| <kbd>Esc</kbd> | Return to Main Title Menu |
 | <kbd>M</kbd> | Toggle Color / Monochrome (B&W) mode |
 | <kbd>-</kbd> | Slower speed (easier) |
 | <kbd>+</kbd> / <kbd>=</kbd> | Faster speed (harder) |

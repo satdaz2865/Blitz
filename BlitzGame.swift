@@ -1,4 +1,5 @@
 import Foundation
+import AppKit
 
 enum GameState {
     case title
@@ -40,9 +41,11 @@ class BlitzGame {
     var bombCol: Int = 0
     var bombPower: Int = 6 // f = 6 in original BASIC (destroys up to 5 floors + damages 6th)
     
-    // Crash debris
+    // Crash debris & Screen Shake
     var crashDebris: [(row: Int, col: Int, char: UInt8, active: Bool)] = []
     var crashTick: Int = 0
+    var shakeX: CGFloat = 0.0
+    var shakeY: CGFloat = 0.0
     
     // Landing state
     var landingCol: Int = 0
@@ -139,6 +142,8 @@ class BlitzGame {
     func showTitleScreen() {
         state = .title
         audio.silence()
+        shakeX = 0.0
+        shakeY = 0.0
         clearScreen()
         bgColor = 1
         borderColor = 1
@@ -191,6 +196,9 @@ class BlitzGame {
         clearScreen()
         bgColor = 1
         borderColor = 1
+        
+        // Increase speed slightly per level
+        (NSApp.delegate as? AppDelegate)?.updateSpeedForLevel()
         
         planeRow = startRow
         planeCol = 0
@@ -289,20 +297,21 @@ class BlitzGame {
         // Advance plane 1 column to right
         planeCol += 1
         
-        // If plane reached the right edge, wrap to next row down!
+        // If plane reached the right edge, wrap to next row down
         if planeCol >= Self.cols - 1 {
+            // If the plane successfully rolled to the end of Runway Row 21:
+            if planeRow == 21 {
+                triggerLanding()
+                return
+            }
+            
             planeCol = 0
             planeRow += 1
             
-            // If plane reached runway level (Row 21)
-            if planeRow >= 21 {
-                if isCityFlattened() {
-                    triggerLanding()
-                    return
-                } else {
-                    triggerCrash()
-                    return
-                }
+            // If plane descends past runway into ground
+            if planeRow > 21 {
+                triggerCrash()
+                return
             }
         }
         
@@ -417,6 +426,16 @@ class BlitzGame {
     
     private func updateCrashing() {
         crashTick += 1
+        
+        // Authentic VIC-20 screen shake (matching BASIC line 510: poke 36865, rnd(3)+38 : poke 36864, rnd(3)+12)
+        if crashTick <= 16 {
+            shakeX = CGFloat.random(in: -16.0...16.0)
+            shakeY = CGFloat.random(in: -12.0...12.0)
+        } else {
+            shakeX = 0.0
+            shakeY = 0.0
+        }
+        
         var anyMoving = false
         
         for i in 0..<crashDebris.count {
@@ -442,7 +461,10 @@ class BlitzGame {
             }
         }
         
-        if !anyMoving || crashTick > 25 {
+        // Let the explosion and screen shake play for full 16 ticks before transitioning to Game Over
+        if crashTick >= 16 && (!anyMoving || crashTick > 24) {
+            shakeX = 0.0
+            shakeY = 0.0
             triggerGameOver()
         }
     }

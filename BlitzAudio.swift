@@ -5,22 +5,19 @@ class BlitzAudio {
     private var engine = AVAudioEngine()
     private var sourceNode: AVAudioSourceNode?
     
-    // Engine Noise parameters (VIC-I Noise register 36877 / $900D)
+    // Playback state
     private var engineActive: Bool = false
-    private var noiseClockFreq: Float = 0
-    private var noiseVolume: Float = 0
-    private var noisePhase: Float = 0
-    private var currentNoiseBit: Float = 1.0
-    private var lfsr: UInt16 = 0xACE1
+    private var enginePos: Float = 0
     
-    // Voice 2 Tone parameters (VIC-I Voice 2 register 36875 / $900B)
-    private var toneFreq: Float = 0
-    private var toneVolume: Float = 0
-    private var toneDurationSamples: Int = 0
-    private var tonePhase: Float = 0
+    private var hitPlaying: Bool = false
+    private var hitPos: Float = 0
     
-    // Crash Explosion parameters
-    private var explosionVolume: Float = 0
+    private var crashPlaying: Bool = false
+    private var crashPos: Float = 0
+    
+    private var chimePlaying: Bool = false
+    private var chimePhase: Float = 0
+    private var chimeDuration: Int = 0
     
     init() {
         setupAudio()
@@ -29,6 +26,7 @@ class BlitzAudio {
     private func setupAudio() {
         let format = AVAudioFormat(standardFormatWithSampleRate: 44100, channels: 1)!
         let sampleRate: Float = 44100.0
+        let pcmStep: Float = AudioData.sampleRate / sampleRate // 22050 / 44100 = 0.5
         
         sourceNode = AVAudioSourceNode { [weak self] _, _, frameCount, audioBufferList -> OSStatus in
             guard let self = self else { return noErr }
@@ -40,52 +38,56 @@ class BlitzAudio {
             for frame in 0..<Int(frameCount) {
                 var sample: Float = 0
                 
-                // 1. Voice 2: Square wave tone (for building floor hits & landing)
-                if self.toneVolume > 0 && self.toneFreq > 20 && self.toneDurationSamples > 0 {
-                    let period = sampleRate / self.toneFreq
-                    self.tonePhase += 1.0
-                    if self.tonePhase >= period { self.tonePhase -= period }
-                    let square: Float = (self.tonePhase < period * 0.5) ? 1.0 : -1.0
-                    sample += square * self.toneVolume
-                    self.toneDurationSamples -= 1
-                    if self.toneDurationSamples <= 0 {
-                        self.toneVolume = 0
+                // 1. Authentic biplane engine loop from blitz.mp4
+                if self.engineActive && !AudioData.enginePCM.isEmpty {
+                    let idx = Int(self.enginePos)
+                    if idx < AudioData.enginePCM.count {
+                        sample += AudioData.enginePCM[idx] * 0.40
+                    }
+                    self.enginePos += pcmStep
+                    if Int(self.enginePos) >= AudioData.enginePCM.count {
+                        self.enginePos -= Float(AudioData.enginePCM.count)
                     }
                 }
                 
-                // 2. Engine Noise: Clocked LFSR pseudo-random noise matching VIC-I registers 160 & 128
-                if self.engineActive && self.noiseClockFreq > 10 {
-                    let clockPeriod = sampleRate / self.noiseClockFreq
-                    self.noisePhase += 1.0
-                    if self.noisePhase >= clockPeriod {
-                        self.noisePhase -= clockPeriod
-                        // 16-bit Galois LFSR (polynomial: x^16 + x^14 + x^13 + x^11 + 1)
-                        let lsb = self.lfsr & 1
-                        self.lfsr >>= 1
-                        if lsb != 0 {
-                            self.lfsr ^= 0xB400
-                        }
-                        self.currentNoiseBit = (lsb != 0) ? 1.0 : -1.0
+                // 2. Authentic floor hit / bomb drill sound from blitz.mp4
+                if self.hitPlaying && !AudioData.hitPCM.isEmpty {
+                    let idx = Int(self.hitPos)
+                    if idx < AudioData.hitPCM.count {
+                        sample += AudioData.hitPCM[idx] * 0.75
                     }
-                    sample += self.currentNoiseBit * self.noiseVolume
+                    self.hitPos += pcmStep
+                    if Int(self.hitPos) >= AudioData.hitPCM.count {
+                        self.hitPlaying = false
+                    }
                 }
                 
-                // 3. Crash explosion: Noise generator clocked at ~989.6 Hz decaying over ~1s
-                if self.explosionVolume > 0 {
-                    let clockPeriod = sampleRate / 989.6
-                    self.noisePhase += 1.0
-                    if self.noisePhase >= clockPeriod {
-                        self.noisePhase -= clockPeriod
-                        let lsb = self.lfsr & 1
-                        self.lfsr >>= 1
-                        if lsb != 0 { self.lfsr ^= 0xB400 }
-                        self.currentNoiseBit = (lsb != 0) ? 1.0 : -1.0
+                // 3. Authentic crash explosion sound from blitz.mp4
+                if self.crashPlaying && !AudioData.crashPCM.isEmpty {
+                    let idx = Int(self.crashPos)
+                    if idx < AudioData.crashPCM.count {
+                        sample += AudioData.crashPCM[idx] * 0.90
                     }
-                    sample += self.currentNoiseBit * self.explosionVolume
-                    self.explosionVolume = max(0, self.explosionVolume - 0.00007)
+                    self.crashPos += pcmStep
+                    if Int(self.crashPos) >= AudioData.crashPCM.count {
+                        self.crashPlaying = false
+                    }
                 }
                 
-                ptr[frame] = max(-1.0, min(1.0, sample * 0.35))
+                // 4. Landing victory chime
+                if self.chimePlaying && self.chimeDuration > 0 {
+                    let period = sampleRate / 554.37 // C#5
+                    self.chimePhase += 1.0
+                    if self.chimePhase >= period { self.chimePhase -= period }
+                    let square: Float = (self.chimePhase < period * 0.5) ? 0.35 : -0.35
+                    sample += square
+                    self.chimeDuration -= 1
+                    if self.chimeDuration <= 0 {
+                        self.chimePlaying = false
+                    }
+                }
+                
+                ptr[frame] = max(-1.0, min(1.0, sample))
             }
             return noErr
         }
@@ -97,51 +99,38 @@ class BlitzAudio {
         }
     }
     
-    // Engine hum toggles between noise register 160 and 128
     func playEngineHum(propState: Bool) {
         engineActive = true
-        // In 6561 PAL VIC-I:
-        // pokew, 160 -> clock = 1108404 / (32 * (255 - 160)) ≈ 364.6 Hz
-        // pokew, 128 -> clock = 1108404 / (32 * (255 - 128)) ≈ 272.7 Hz
-        noiseClockFreq = propState ? 364.6 : 272.7
-        noiseVolume = 0.28 // volume = 3 in original BASIC
     }
     
     func stopEngine() {
         engineActive = false
     }
     
-    // Building floor hit: Voice 2 square wave with formula pokeu, 254 - f*20
     func playBuildingFloorHit(fRemaining: Int) {
-        let regVal = 254 - fRemaining * 20
-        // Voice 2 frequency on 6561 PAL VIC-I chip: freq = Clock / (128 * (255 - regVal))
-        let freq = 1108404.0 / (128.0 * Float(255 - regVal))
-        toneFreq = freq
-        toneVolume = 0.65 // Full volume (pokev, 15)
-        toneDurationSamples = Int(44100.0 * 0.14) // ~140ms staccato burst per floor
-        tonePhase = 0
+        hitPos = 0
+        hitPlaying = true
     }
     
-    // Crash explosion: pokew, 220 with decaying volume
     func playCrashExplosion() {
         engineActive = false
-        toneVolume = 0
-        toneDurationSamples = 0
-        explosionVolume = 0.95
+        hitPlaying = false
+        crashPos = 0
+        crashPlaying = true
     }
     
-    // Safe landing celebration
     func playLandingChime() {
         engineActive = false
-        toneFreq = 554.37 // C#5
-        toneVolume = 0.5
-        toneDurationSamples = Int(44100.0 * 0.4)
+        hitPlaying = false
+        chimePhase = 0
+        chimeDuration = Int(44100.0 * 0.4)
+        chimePlaying = true
     }
     
     func silence() {
         engineActive = false
-        toneVolume = 0
-        toneDurationSamples = 0
-        explosionVolume = 0
+        hitPlaying = false
+        crashPlaying = false
+        chimePlaying = false
     }
 }
