@@ -2,6 +2,10 @@
 
 A 100% native reverse-engineered recreation of the legendary 1981 Commodore VIC-20 classic **Blitz** (written by Simon N. Taylor, published by Commodore UK / Taysoft).
 
+<p align="center">
+  <img src="screenshot.png" alt="VIC Blitz Gameplay Screenshot" width="720">
+</p>
+
 This repository contains two completely native, standalone ports with **zero emulators** required:
 * **macOS (AppKit / Swift)**: Runs on Apple Silicon (arm64) and Intel (x86_64) Macs. Pre-built bundle: [`macOS/VIC Blitz.app`](macOS/VIC%20Blitz.app).
 * **Windows (Win32 / C)**: Pure native 64-bit Windows GUI executable with GDI graphics and WaveOut audio. Pre-built executable: [`Windows/VIC_Blitz.exe`](Windows/VIC_Blitz.exe).
