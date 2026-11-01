@@ -271,7 +271,7 @@
   }
 
   window.addEventListener('keydown', (event) => {
-    if ([' ', 'Enter', 'ArrowDown', 'F1'].includes(event.key)) {
+    if ([' ', 'Enter', 'ArrowDown', 'F1'].includes(event.key) || event.code === 'F1' || event.keyCode === 112) {
       event.preventDefault();
       fire();
     } else if (event.key === 'Escape') {
