@@ -4,3 +4,5 @@ macOS/VIC Blitz
 *.o
 *.res
 *.swp
+.vercel
+.aider*

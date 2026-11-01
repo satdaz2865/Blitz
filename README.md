@@ -1,12 +1,13 @@
-# VIC-20 Blitz (1981) — Native macOS & Windows Ports
+# VIC-20 Blitz (1981) — Web, macOS & Windows Ports
 
-A 100% native reverse-engineered recreation of the legendary 1981 Commodore VIC-20 classic **Blitz** (written by Simon N. Taylor, published by Commodore UK / Taysoft).
+A reverse-engineered recreation of the legendary 1981 Commodore VIC-20 classic **Blitz** (written by Simon N. Taylor, published by Commodore UK / Taysoft).
 
 <p align="center">
   <img src="screenshot.png" alt="VIC Blitz Gameplay Screenshot" width="720">
 </p>
 
-This repository contains two completely native, standalone ports with **zero emulators** required:
+This repository contains a standalone browser edition and two native ports; no emulator is required:
+* **Web (HTML/CSS/JavaScript)**: Responsive browser game in [`HTML/`](HTML/). Play it online at **https://blitz-vic20.vercel.app**, or open `HTML/index.html` directly; no build or server is needed. The page is just the game canvas, scales to fit phones in portrait and landscape, and shakes the screen on a crash.
 * **macOS (AppKit / Swift)**: Runs on Apple Silicon (arm64) and Intel (x86_64) Macs. Pre-built bundle: [`macOS/VIC Blitz.app`](macOS/VIC%20Blitz.app).
 * **Windows (Win32 / C)**: Pure native 64-bit Windows GUI executable with GDI graphics and WaveOut audio. Pre-built executable: [`Windows/VIC_Blitz.exe`](Windows/VIC_Blitz.exe).
 
@@ -45,6 +46,16 @@ This repository contains two completely native, standalone ports with **zero emu
 .
 ├── README.md               # Project documentation
 │
+├── HTML/                   # Standalone browser edition
+│   ├── index.html          # Open directly in a modern browser
+│   ├── app.js              # Pixel renderer, audio and browser controls
+│   ├── game.js             # Game simulation
+│   ├── font-data.js        # VIC-20 ROM glyphs and game sprites
+│   ├── audio-data.js       # Embedded original engine, hit and crash recordings
+│   ├── styles.css          # Responsive styling
+│   ├── game.test.mjs       # Node.js built-in test suite
+│   └── README.md           # Browser edition instructions
+│
 ├── macOS/                  # Native macOS AppKit/Swift Port
 │   ├── VIC Blitz.app       # Pre-built standalone macOS application bundle
 │   ├── main.swift          # AppKit delegate, event handling, and game loop
@@ -76,6 +87,21 @@ This repository contains two completely native, standalone ports with **zero emu
 ---
 
 ## How to Build & Run
+
+### Web
+
+Play online at https://blitz-vic20.vercel.app, or open `HTML/index.html` in a modern browser. No build step, local server, or external assets are required.
+
+The web edition is hosted on Vercel as a static site. To publish changes, run this from the `HTML/` folder (requires `npx vercel login` once):
+
+```sh
+npx vercel deploy --prod --yes
+```
+
+Run the game simulation tests from the repository root with Node.js:
+```bash
+node --test HTML/game.test.mjs
+```
 
 ### macOS
 
